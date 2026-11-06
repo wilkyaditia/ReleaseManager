@@ -1,0 +1,51 @@
+@model IEnumerable<ProgramInfo>
+@{
+    ViewData["Title"] = "Programs";
+}
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+    <div>
+        <div class="text-uppercase small fw-semibold text-primary mb-1">Configuration</div>
+        <h1 class="h2 mb-1">Programs</h1>
+        <div class="text-secondary">Manage source folders and delivery settings.</div>
+    </div>
+    @if (User.IsInRole("Admin"))
+    {
+        <a class="btn btn-primary" asp-action="Create">＋ Add program</a>
+    }
+</div>
+@if (!User.IsInRole("Admin"))
+{
+    <div class="alert alert-info">An Admin account is required to add or edit programs.</div>
+}
+<div class="card overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead><tr><th class="ps-3">Program</th><th>Version</th><th>Source folder</th><th>FTP</th><th>Email</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var program in Model)
+                {
+                    <tr>
+                        <td class="ps-3 fw-semibold">@program.Name</td>
+                        <td><span class="font-monospace">@(string.IsNullOrWhiteSpace(program.CurrentVersion) ? "—" : "v" + program.CurrentVersion)</span></td>
+                        <td><code>@program.SourcePath</code><div class="small text-secondary">ZIP: @(string.IsNullOrWhiteSpace(program.ZipFileExtensions) ? "all file types" : program.ZipFileExtensions)</div></td>
+                        <td>@(program.FtpConfig?.Name ?? "—")</td>
+                        <td>@(program.EmailConfig?.Name ?? "—")</td>
+                        <td class="text-end pe-3">
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <a class="btn btn-sm btn-outline-primary" asp-action="Edit" asp-route-id="@program.Id">Edit</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (!Model.Any())
+        {
+            <div class="empty-state">
+                <div class="fw-semibold text-dark">No programs configured</div>
+                <div class="small">Add a program to start creating releases.</div>
+            </div>
+        }
+    </div>
+</div>

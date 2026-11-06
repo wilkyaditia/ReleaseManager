@@ -1,0 +1,58 @@
+@model ReleaseManager.ViewModels.EditUserViewModel
+@{
+    ViewData["Title"] = "Edit account";
+}
+
+<div class="mb-4">
+    <a class="small text-decoration-none" asp-action="Index">← Accounts</a>
+    <h1 class="h2 mt-2 mb-1">Edit account</h1>
+    <div class="text-secondary">Update account details, access, or reset the password.</div>
+</div>
+
+<div class="card"><div class="card-body p-4">
+    <form asp-action="Edit" method="post">
+        <input asp-for="Id" type="hidden" />
+        <div asp-validation-summary="All" class="text-danger mb-3"></div>
+        <div class="mb-3">
+            <label asp-for="Username" class="form-label"></label>
+            <input asp-for="Username" class="form-control" autocomplete="username" />
+            <span asp-validation-for="Username" class="text-danger small"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="DisplayName" class="form-label"></label>
+            <input asp-for="DisplayName" class="form-control" autocomplete="name" />
+            <span asp-validation-for="DisplayName" class="text-danger small"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Role" class="form-label"></label>
+            <select asp-for="Role" class="form-select">
+                @foreach (var role in (string[])ViewBag.Roles)
+                {
+                    <option value="@role">@role</option>
+                }
+            </select>
+            <span asp-validation-for="Role" class="text-danger small"></span>
+        </div>
+        <div class="form-check mb-4">
+            <input asp-for="Active" class="form-check-input" />
+            <label asp-for="Active" class="form-check-label">Account is active</label>
+        </div>
+        <hr />
+        <h2 class="h5">Reset password</h2>
+        <p class="text-secondary small">Leave both fields blank to keep the current password.</p>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label asp-for="NewPassword" class="form-label">New password</label>
+                <input asp-for="NewPassword" class="form-control" autocomplete="new-password" />
+                <span asp-validation-for="NewPassword" class="text-danger small"></span>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label asp-for="ConfirmPassword" class="form-label">Confirm new password</label>
+                <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+            </div>
+        </div>
+        <button class="btn btn-primary" type="submit">Save account</button>
+        <a class="btn btn-light" asp-action="Index">Cancel</a>
+    </form>
+</div></div>

@@ -1,0 +1,18 @@
+@model Release
+@{
+    ViewData["Title"] = "Release Email";
+}
+<div class="d-flex justify-content-between">
+    <h2>Email Preview</h2>
+    <form method="post" asp-action="CreateGmailDraft" asp-route-id="@Model.Id" target="@(Model.ProgramInfo.EmailConfig == null ? "_blank" : "_self")">@Html.AntiForgeryToken()<button class="btn btn-primary">Create Gmail draft</button>
+    </form>
+</div>
+<div class="card mt-3">
+    <div class="card-body">
+        <p><strong>From:</strong> @ViewBag.SenderName</p>
+        <p><strong>Subject:</strong> @ViewBag.Subject</p>
+        <p class="text-secondary">This opens Gmail using the account signed in to your browser. Review the draft and attach the generated ZIP before sending.</p>
+        <textarea class="form-control" rows="25"
+                                                                   readonly>@ViewBag.Body</textarea>
+    </div>
+</div>

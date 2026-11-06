@@ -1,0 +1,42 @@
+@model ProgramFormViewModel
+<form method="post">
+    @Html.AntiForgeryToken()
+    <input asp-for="Id" type="hidden">
+    <div asp-validation-summary="All" class="text-danger"></div>
+    <div class="mb-3"><label asp-for="Name" class="form-label"></label><input asp-for="Name" class="form-control"></div>
+    <div class="mb-3"><label asp-for="DisplayName" class="form-label"></label><input asp-for="DisplayName"
+                                                                                         class="form-control"></div>
+        <div class="mb-3"><label asp-for="CurrentVersion" class="form-label"></label><input asp-for="CurrentVersion"
+                                                                                                class="form-control"></div>
+            <div class="mb-3"><label asp-for="SourcePath" class="form-label"></label><input asp-for="SourcePath"
+                                                                                                class="form-control" placeholder="\\SERVER\ReleaseSource\POSBPB"></div>
+                <div class="mb-3">
+                    <label asp-for="ZipFileExtensions" class="form-label">Extensions to include in ZIP</label>
+                    <input asp-for="ZipFileExtensions" class="form-control" placeholder=".dll, .config, .json" />
+                    <div class="form-text">Separate extensions with commas. When set, the ZIP includes only files named after the program, such as posBpb.dll and posBpb.pdb. Leave blank to include every file under the source folder.</div>
+                    <span asp-validation-for="ZipFileExtensions" class="text-danger"></span>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3"><label>FTP Config</label><select asp-for="FtpConfigId" class="form-select">
+                        <option value="">-- none --</option>@foreach(var x in (IEnumerable<FtpConfig>)ViewBag.Ftp){
+                        <option
+                        value="@x.Id">@x.Name</option>
+                    }
+                </select></div>
+                <div class="col-md-6 mb-3"><label>FTP Folder</label><input asp-for="FtpFolder" class="form-control"
+                                                                               placeholder="PosBPB"></div>
+                </div>
+                <div class="mb-3"><label>Email Config</label><select asp-for="EmailConfigId" class="form-select">
+                    <option value="">-- none --</option>@foreach(var x in (IEnumerable<EmailConfig>)ViewBag.Email){
+                    <option
+                    value="@x.Id">@x.Name</option>
+                }
+            </select></div>
+            <div class="row">
+                <div class="col-md-6 mb-3"><label>Email To</label><input asp-for="EmailTo" class="form-control"></div>
+                <div class="col-md-6 mb-3"><label>Email CC</label><input asp-for="EmailCc" class="form-control"></div>
+            </div>
+            <div class="form-check mb-3"><input asp-for="Active" class="form-check-input"><label asp-for="Active"
+                                                                                                     class="form-check-label"></label></div><button class="btn btn-primary">Save</button> <a href="/Programs"
+                                                                                                        class="btn btn-secondary">Cancel</a>
+            </form>

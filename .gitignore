@@ -1,0 +1,20 @@
+# Build outputs
+bin/
+obj/
+.codex-build/
+
+# Release packages
+**/ReleaseFiles/
+
+# Installer files
+Installer/*.exe
+Installer/*.msi
+Installer/*.zip
+
+# Archive files
+ReleaseManager_Old.zip
+
+# Visual Studio
+.vs/
+*.user
+*.suo

@@ -1,0 +1,76 @@
+@model ReleaseManager.ViewModels.FtpFormViewModel
+
+@{
+    ViewData["Title"] = "FTP Configuration";
+}
+
+<h2>FTP Configuration</h2>
+
+<form asp-controller="Settings" asp-action="FtpSave" method="post">
+
+    @Html.AntiForgeryToken()
+
+    <input type="hidden" asp-for="Id" />
+
+    <div class="mb-3">
+        <label asp-for="Name" class="form-label"></label>
+        <input asp-for="Name" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Host" class="form-label"></label>
+        <input asp-for="Host" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Port" class="form-label"></label>
+        <input asp-for="Port" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Username" class="form-label"></label>
+        <input asp-for="Username" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label"></label>
+        <input asp-for="Password" type="password" class="form-control" />
+    </div>
+
+    <div class="form-check mb-3">
+        <input asp-for="UseFtps" class="form-check-input" />
+        <label asp-for="UseFtps" class="form-check-label">
+            Use FTPS
+        </label>
+    </div>
+
+    <div class="form-check mb-3">
+        <input asp-for="ValidateCertificate" class="form-check-input" />
+        <label asp-for="ValidateCertificate" class="form-check-label">
+            Validate Certificate
+        </label>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="RemoteRoot" class="form-label"></label>
+        <input asp-for="RemoteRoot" class="form-control" />
+    </div>
+
+    <div class="form-check mb-3">
+        <input asp-for="Active" class="form-check-input" />
+        <label asp-for="Active" class="form-check-label">
+            Active
+        </label>
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+        Save
+    </button>
+
+    <a asp-controller="Settings"
+       asp-action="Index"
+       class="btn btn-secondary">
+        Cancel
+    </a>
+
+</form>

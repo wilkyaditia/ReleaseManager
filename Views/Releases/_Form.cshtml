@@ -1,0 +1,379 @@
+@model ReleaseFormViewModel
+@using ReleaseManager.Models
+
+<form method="post">
+    @Html.AntiForgeryToken()
+
+    <input asp-for="Id" type="hidden" />
+
+    <div asp-validation-summary="All" class="text-danger"></div>
+
+    <!-- Program / Version / Date / Status -->
+    <div class="row">
+        <div class="col-md-3 mb-3">
+            <label>Program</label>
+
+            <select asp-for="ProgramInfoId" class="form-select">
+                <option value="">-- select --</option>
+
+                @foreach (var x in (IEnumerable<ProgramInfo>)ViewBag.Programs)
+                {
+                    <option value="@x.Id">@x.Name</option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <label>Version</label>
+            <input asp-for="Version" class="form-control" />
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <label>Date</label>
+            <input asp-for="ReleaseDate" type="date" class="form-control" />
+        </div>
+
+        <div class="col-md-3 mb-3">
+            <label asp-for="Status">Release Status</label>
+            @if (Model.Id == 0)
+            {
+                <input class="form-control" value="@ReleaseStatus.ON_DEVELOPING" disabled />
+                <input asp-for="Status" type="hidden" value="@ReleaseStatus.ON_DEVELOPING" />
+            }
+            else
+            {
+                <select asp-for="Status" class="form-select">
+                    @foreach (var status in ReleaseStatus.All.Where(status => status != ReleaseStatus.RELEASED || Model.Status == ReleaseStatus.RELEASED))
+                    {
+                        <option value="@status">@status</option>
+                    }
+                </select>
+                <div class="form-text">Status is calculated from the version and checklist. Select READY QA to set it manually.</div>
+            }
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label">Start date (release add time)</label>
+            <input class="form-control" value="@(Model.CreatedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "Set when saved")" disabled />
+        </div>
+        <div class="col-md-6 mb-3">
+            <label class="form-label">Last update (newest item add time)</label>
+            <input class="form-control" value="@(Model.LastUpdatedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "Set when an item is added")" disabled />
+        </div>
+    </div>
+
+    <!-- PIC -->
+    <div class="mb-3">
+        <label>PIC</label>
+        <input asp-for="Pic" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Notes" class="form-label">Catatan</label>
+        <textarea asp-for="Notes" class="form-control" rows="4" maxlength="4000" placeholder="Additional release information"></textarea>
+        <span asp-validation-for="Notes" class="text-danger small"></span>
+    </div>
+
+    <!-- Changes -->
+    <h5>Changes</h5>
+
+    <div id="items" data-current-user-display="@User.FindFirst("DisplayName")?.Value"></div>
+
+    <!-- Add Item -->
+    <button type="button" class="btn btn-outline-secondary mb-3" onclick="addItem()">
+        + Add Item
+    </button>
+
+    <br />
+
+    <!-- Buttons -->
+    <button type="submit" class="btn btn-primary">
+        Save Release
+    </button>
+
+    <a href="/Releases" class="btn btn-secondary">
+        Cancel
+    </a>
+
+</form>
+
+
+<!-- ========================================================= -->
+<!-- SINGLE TEMPLATE FOR ALL ITEMS -->
+<!-- ========================================================= -->
+
+<template id="item-template">
+
+    <div class="card p-3 mb-2 item">
+        <input type="hidden" class="item-id" />
+        <input type="hidden" class="user-display-name" />
+        <input type="hidden" class="created-at" />
+
+        <input type="hidden" class="sort-order" />
+
+        <div class="row">
+
+            <!-- Category -->
+            <div class="col-md-3">
+                <label>Category</label>
+
+                <select class="form-select category">
+                    @foreach (var category in ReleaseCategories.All)
+                    {
+                        <option value="@category">@category</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Reference -->
+            <div class="col-md-2">
+                <label>Program version</label>
+                <input class="form-control program-version" maxlength="50" placeholder="e.g. 1.2.0" />
+            </div>
+
+            <div class="col-md-3">
+                <label>Reference</label>
+
+                <input class="form-control reference-no" placeholder="Reference / PRPK / Memo" />
+                <input type="hidden" class="reference-preserved" disabled />
+            </div>
+
+            <!-- Description -->
+            <div class="col-md-4">
+                <label>Description</label>
+
+                <input class="form-control description" placeholder="Description" />
+            </div>
+
+        </div>
+
+        <!-- Complaint source -->
+        <div class="row mt-2">
+            <div class="col-md-6">
+                <label>Complaint source (used for REVISI)</label>
+                <input class="form-control complaint-source" placeholder="Complaint source" disabled />
+            </div>
+
+        </div>
+
+        <div class="row mt-2 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label">Added at</label>
+                <input type="text" class="form-control item-created-at" value="Set when saved" disabled />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Added by</label>
+                <input type="text" class="form-control item-user-display" value="Assigned on save" disabled />
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-sm btn-outline-danger item-remove" onclick="removeItem(this)" aria-label="Remove this change">Remove</button>
+
+    </div>
+
+</template>
+
+
+<!-- ========================================================= -->
+<!-- EXISTING DATA FROM MODEL -->
+<!-- ========================================================= -->
+
+<div id="initial-items" hidden>
+
+    @for (int i = 0; i < Model.Items.Count; i++)
+    {
+        var item = Model.Items[i];
+
+        <div class="initial-item" data-id="@item.Id" data-category="@item.Category" data-reference="@item.ReferenceNo"
+             data-description="@item.Description" data-program-version="@item.ProgramVersion" data-created-at="@item.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")" data-user-display="@item.UserDisplayName"
+             data-complaint-source="@item.ComplaintSource">
+        </div>
+    }
+
+</div>
+
+
+<script>
+
+    // =========================================================
+    // CREATE ITEM FROM THE SINGLE TEMPLATE
+    // =========================================================
+
+    function createItem(index, data = {}) {
+
+        const template = document.getElementById("item-template");
+
+        // Clone template
+        const fragment = template.content.cloneNode(true);
+
+        const item = fragment.querySelector(".item");
+        const itemId = item.querySelector(".item-id");
+        itemId.name = `Items[${index}].Id`;
+        itemId.value = data.id || 0;
+        const userDisplayName = item.querySelector(".user-display-name");
+        userDisplayName.name = `Items[${index}].UserDisplayName`;
+        userDisplayName.value = data.userDisplayName || "";
+
+        const createdAt = item.querySelector(".created-at");
+        createdAt.name = `Items[${index}].CreatedAt`;
+        createdAt.value = data.createdAt || "";
+        item.querySelector(".item-created-at").value = data.createdAt || "Assigned when saved";
+        item.querySelector(".item-user-display").value = data.userDisplayName || document.getElementById("items").dataset.currentUserDisplay || "Assigned on save";
+
+        // SortOrder
+        const sortOrder = item.querySelector(".sort-order");
+
+        sortOrder.name = `Items[${index}].SortOrder`;
+        sortOrder.value = index;
+
+        // Category
+        const category = item.querySelector(".category");
+
+        category.name = `Items[${index}].Category`;
+
+        const programVersion = item.querySelector(".program-version");
+        programVersion.name = `Items[${index}].ProgramVersion`;
+        programVersion.value = data.programVersion || "";
+
+        // Reference
+        const referenceNo = item.querySelector(".reference-no");
+
+        referenceNo.name = `Items[${index}].ReferenceNo`;
+        const preservedReference = item.querySelector(".reference-preserved");
+        preservedReference.name = `Items[${index}].ReferenceNo`;
+
+        function updateReferenceAvailability() {
+            const isRevision = category.value === "REVISI";
+            referenceNo.disabled = isRevision;
+            preservedReference.disabled = !isRevision;
+            if (isRevision) {
+                referenceNo.value = "";
+                preservedReference.value = "";
+            }
+        }
+        category.addEventListener("change", updateReferenceAvailability);
+
+        // Description
+        const description = item.querySelector(".description");
+
+        description.name = `Items[${index}].Description`;
+
+        // Complaint Source
+        const complaintSource = item.querySelector(".complaint-source");
+
+        complaintSource.name = `Items[${index}].ComplaintSource`;
+        function updateComplaintSourceAvailability() {
+            const isRevision = category.value === "REVISI";
+            complaintSource.disabled = !isRevision;
+            if (!isRevision) complaintSource.value = "";
+        }
+        category.addEventListener("change", updateComplaintSourceAvailability);
+
+        // =====================================================
+        // POPULATE EXISTING DATA
+        // =====================================================
+
+        if (data) {
+
+            category.value = data.category || "";
+
+            programVersion.value = data.programVersion || "";
+
+            referenceNo.value = data.reference || "";
+
+            description.value = data.description || "";
+
+            complaintSource.value = data.complaintSource || "";
+
+        }
+
+        updateReferenceAvailability();
+        updateComplaintSourceAvailability();
+
+        return fragment;
+    }
+
+
+    // =========================================================
+    // LOAD EXISTING ITEMS (EDIT RELEASE)
+    // =========================================================
+
+    function loadExistingItems() {
+
+        const initialItems = document.querySelectorAll(".initial-item");
+
+        const container = document.getElementById("items");
+
+        initialItems.forEach(function (element, index) {
+
+            const data = {
+                id: element.dataset.id,
+                createdAt: element.dataset.createdAt,
+                userDisplayName: element.dataset.userDisplay,
+                category: element.dataset.category,
+                programVersion: element.dataset.programVersion,
+                reference: element.dataset.reference,
+                description: element.dataset.description,
+                complaintSource: element.dataset.complaintSource
+            };
+
+            const item = createItem(index, data);
+
+            container.appendChild(item);
+
+
+
+        });
+
+    }
+
+
+    // =========================================================
+    // ADD NEW ITEM
+    // =========================================================
+
+    function addItem() {
+
+        const container = document.getElementById("items");
+
+        const index = container.querySelectorAll(".item").length;
+
+        const item = createItem(index);
+
+        container.appendChild(item);
+
+    }
+
+    function removeItem(button) {
+        button.closest(".item").remove();
+        reindexItems();
+    }
+
+    function reindexItems() {
+        document.querySelectorAll("#items .item").forEach(function (item, index) {
+            const fields = {
+                ".item-id": "Id",
+                ".user-display-name": "UserDisplayName",
+                ".created-at": "CreatedAt",
+                ".sort-order": "SortOrder",
+                ".category": "Category",
+                ".program-version": "ProgramVersion",
+                ".reference-no": "ReferenceNo",
+                ".reference-preserved": "ReferenceNo",
+                ".description": "Description",
+                ".complaint-source": "ComplaintSource"
+            };
+            Object.entries(fields).forEach(function ([selector, field]) {
+                item.querySelector(selector).name = `Items[${index}].${field}`;
+            });
+            item.querySelector(".sort-order").value = index;
+        });
+    }
+
+
+    // Load existing data when page opens
+    loadExistingItems();
+
+</script>

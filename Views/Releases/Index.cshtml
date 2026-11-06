@@ -1,0 +1,91 @@
+@model IEnumerable<Release>
+@using ReleaseManager.Models
+@{
+    ViewData["Title"] = "Releases";
+    var releases = Model.ToList();
+    var selectedStatus = ViewBag.Status as string;
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+    <div>
+        <div class="text-uppercase small fw-semibold text-primary mb-1">Release workspace</div>
+        <h1 class="h2 mb-1">Releases</h1>
+        <div class="text-secondary">Track packages from development through QA approval.</div>
+    </div>
+    <a class="btn btn-primary px-3" asp-action="Create"><span aria-hidden="true">＋</span> New release</a>
+</div>
+
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+    <div class="btn-group flex-wrap" role="group" aria-label="Filter releases by status">
+        <a class="btn btn-outline-secondary status-filter @(string.IsNullOrEmpty(selectedStatus) ? "active" : "")" asp-action="Index">All <span class="opacity-75">@releases.Count</span></a>
+        @foreach (var status in ReleaseStatus.All)
+        {
+            <a class="btn btn-outline-secondary status-filter @(selectedStatus == status ? "active" : "")" asp-action="Index" asp-route-status="@status">@status</a>
+        }
+    </div>
+    <div class="search-wrap">
+        <span class="search-icon" aria-hidden="true">⌕</span>
+        <input id="releaseSearch" class="form-control" type="search" placeholder="Search program, version, or PIC" aria-label="Search releases" autocomplete="off" />
+        <button id="clearSearch" class="search-clear d-none" type="button" aria-label="Clear search">×</button>
+    </div>
+</div>
+
+<div class="card overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0" id="releaseTable">
+            <thead><tr><th class="ps-3">Program</th><th>Version</th><th>Release date</th><th>Start date</th><th>Last update</th><th>PIC</th><th>Status</th><th class="text-end pe-3">Action</th></tr></thead>
+            <tbody>
+                @foreach (var release in releases)
+                {
+                    var lastUpdatedAt = release.Items.OrderByDescending(item => item.CreatedAt).Select(item => (DateTime?)item.CreatedAt).FirstOrDefault();
+                    <tr data-search="@((release.ProgramInfo.Name + " " + release.Version + " " + release.Pic).ToLowerInvariant())">
+                        <td class="ps-3 fw-semibold">@release.ProgramInfo.Name</td>
+                        <td><span class="font-monospace">v@(release.Version)</span></td>
+                        <td>@(release.Status == ReleaseStatus.RELEASED ? release.ReleaseDate.ToString("M/d/yyyy") : "")</td>
+                        <td>@release.CreatedAt.ToString("M/d/yyyy HH:mm")</td>
+                        <td>@(lastUpdatedAt?.ToString("M/d/yyyy HH:mm") ?? "—")</td>
+                        <td>@(string.IsNullOrWhiteSpace(release.Pic) ? "—" : release.Pic)</td>
+                        <td><span class="badge rounded-pill text-bg-light border">@release.Status</span></td>
+                        <td class="text-end pe-3"><a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@release.Id">Open <span aria-hidden="true">→</span></a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div id="noReleases" class="empty-state d-none">
+        <div class="fs-2 mb-2">⌕</div>
+        <div class="fw-semibold text-dark">No matching releases</div>
+        <div class="small">Try a different search term.</div>
+    </div>
+    @if (releases.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="fw-semibold text-dark">No releases here yet</div>
+            <div class="small mb-3">Create a release to start tracking its progress.</div>
+            <a class="btn btn-sm btn-primary" asp-action="Create">Create release</a>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const search = document.getElementById("releaseSearch");
+            const clear = document.getElementById("clearSearch");
+            const rows = [...document.querySelectorAll("#releaseTable tbody tr")];
+            const empty = document.getElementById("noReleases");
+            search.addEventListener("input", () => {
+                const term = search.value.trim().toLocaleLowerCase();
+                let visible = 0;
+                rows.forEach(row => {
+                    const match = row.dataset.search.includes(term);
+                    row.classList.toggle("d-none", !match);
+                    if (match) visible++;
+                });
+                clear.classList.toggle("d-none", !term);
+                empty.classList.toggle("d-none", visible !== 0 || rows.length === 0);
+            });
+            clear.addEventListener("click", () => { search.value = ""; search.dispatchEvent(new Event("input")); search.focus(); });
+        })();
+    </script>
+}

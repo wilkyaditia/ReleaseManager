@@ -1,0 +1,321 @@
+@model Release
+@{
+    ViewData["Title"] = "Release Details";
+    var zipExists = ViewBag.ZipExists is bool zipPresent && zipPresent;
+    var ftpDone = Model.UploadedAt.HasValue;
+    var emailDone = Model.EmailPreparedAt.HasValue;
+    var whatsAppDone = Model.WhatsAppSentAt.HasValue;
+    var savedZipPath = Model.ZipFilePath ?? (string.IsNullOrWhiteSpace(Model.ZipFileName)
+        ? null
+        : System.IO.Path.Combine(Model.ProgramInfo.SourcePath, Model.ZipFileName));
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <a class="small text-decoration-none" asp-action="Index">← Releases</a>
+        <h1 class="h2 mt-2 mb-1">@Model.ProgramInfo.Name <span class="font-monospace">v@(Model.Version)</span></h1>
+        <div class="text-secondary">Release date: @(Model.Status == ReleaseStatus.RELEASED ? Model.ReleaseDate.ToString("M/d/yyyy") : "") · @Model.Status · PIC: @(Model.Pic ?? "—")</div>
+        <div class="text-secondary">Start date: @Model.CreatedAt.ToString("M/d/yyyy HH:mm")</div>
+        <div class="text-secondary">Last update: @(Model.Items.OrderByDescending(item => item.CreatedAt).Select(item => (DateTime?)item.CreatedAt).FirstOrDefault()?.ToString("M/d/yyyy HH:mm") ?? "—")</div>
+    </div>
+    <a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model.Id">Edit release</a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body p-4">
+        <h2 class="h5 mb-3">Changes <span class="badge rounded-pill text-bg-light border">@Model.Items.Count</span></h2>
+        @if (!Model.Items.Any())
+        {
+            <div class="text-secondary">No changes have been added yet.</div>
+        }
+        @foreach (var group in Model.Items.OrderBy(x => x.SortOrder).GroupBy(x => x.Category))
+        {
+            <h3 class="h6 mt-4">@group.Key</h3>
+            <ol class="mb-0">
+                @foreach (var item in group)
+                {
+                    <li class="mb-3">
+                        <span class="badge text-bg-light border font-monospace">v@(item.ProgramVersion)</span>
+                        @if (item.Category != ReleaseCategories.REVISI && !string.IsNullOrWhiteSpace(item.ReferenceNo))
+                        {
+                            <strong>@item.ReferenceNo:</strong>
+                        }
+                        @item.Description
+                        @if (item.Category == ReleaseCategories.REVISI && !string.IsNullOrWhiteSpace(item.ComplaintSource))
+                        {
+                            <strong class="text-danger">[Komplain @item.ComplaintSource]</strong>
+                        }
+                        <div class="small text-secondary mt-1">
+                            Added at: @item.CreatedAt.ToString("M/d/yyyy HH:mm") · Added by: @(item.User?.DisplayName ?? "Unknown user")
+                        </div>
+                    </li>
+                }
+            </ol>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.Notes))
+{
+    <div class="card mb-4"><div class="card-body p-4">
+        <h2 class="h5">Catatan</h2>
+        <div class="text-secondary" style="white-space:pre-wrap">@Model.Notes</div>
+    </div></div>
+}
+
+<div class="card mb-4">
+    <div class="card-body p-4">
+        <h2 class="h5 mb-1">Release checklist</h2>
+        <p class="small text-secondary">Status updates from the version's final number and completion of all four steps. READY QA can be set manually when editing.</p>
+        <div class="list-group list-group-flush">
+            <div class="list-group-item px-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div><strong>@(zipExists ? "✓" : "○") Generate ZIP</strong><div class="small text-secondary">@(zipExists ? Model.ZipFileName : "No ZIP found in the program source folder.")</div></div>
+                @if (!zipExists)
+                {
+                    <form method="post" asp-action="GenerateZip" asp-route-id="@Model.Id">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-primary">Generate ZIP</button></form>
+                }
+                else { <span class="badge text-bg-success">Complete</span> }
+            </div>
+            <div class="list-group-item px-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div><strong>@(ftpDone ? "✓" : "○") Upload FTP</strong><div class="small text-secondary">@(ftpDone ? $"Uploaded {Model.UploadedAt:M/d/yyyy HH:mm}" : "ZIP must be generated and uploaded to the configured FTP server.")</div></div>
+                @if (!ftpDone && zipExists)
+                {
+                    <form method="post" asp-action="UploadFtp" asp-route-id="@Model.Id">@Html.AntiForgeryToken()<button class="btn btn-sm btn-outline-primary">Upload FTP</button></form>
+                }
+                else if (ftpDone) { <span class="badge text-bg-success">Complete</span> }
+                else { <span class="badge text-bg-secondary">Waiting for ZIP</span> }
+            </div>
+            <div class="list-group-item px-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div><strong>@(emailDone ? "✓" : "○") Generate email</strong><div class="small text-secondary">@(emailDone ? $"Prepared {Model.EmailPreparedAt:M/d/yyyy HH:mm}" : "Prepare the release email in Gmail.")</div></div>
+                @if (!emailDone)
+                {
+                    <a class="btn btn-sm btn-outline-primary" asp-action="Email" asp-route-id="@Model.Id">Generate email</a>
+                }
+                else { <span class="badge text-bg-success">Complete</span> }
+            </div>
+            <div class="list-group-item px-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div><strong>@(whatsAppDone ? "✓" : "○") Send WhatsApp</strong><div class="small text-secondary">@(whatsAppDone ? $"Marked sent {Model.WhatsAppSentAt:M/d/yyyy HH:mm}" : "Send the prepared message in WhatsApp, then mark this step complete.")</div></div>
+                @if (!whatsAppDone)
+                {
+                    <div class="d-flex gap-2">
+                        <a class="btn btn-sm btn-outline-success" asp-action="WhatsApp" asp-route-id="@Model.Id" target="_blank" rel="noopener">Open WhatsApp</a>
+                        <form method="post" asp-action="MarkWhatsAppSent" asp-route-id="@Model.Id">@Html.AntiForgeryToken()<button class="btn btn-sm btn-success">Mark sent</button></form>
+                    </div>
+                }
+                else { <span class="badge text-bg-success">Complete</span> }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-4">
+        <h2 class="h5">Release actions</h2>
+        <div class="d-flex gap-2 flex-wrap mt-3">
+            @if (!User.IsInRole("Admin") && Model.Status != ReleaseStatus.RELEASED)
+            {
+                <form id="releaseActionForm" method="post" asp-action="RunReleaseActions" asp-route-id="@Model.Id" data-progress-url="@Url.Action("ActionProgress", "Releases", new { id = Model.Id })" data-cancel-url="@Url.Action("CancelReleaseActions", "Releases", new { id = Model.Id })">@Html.AntiForgeryToken()<button id="releaseActionButton" class="btn btn-primary" type="submit">Release</button></form>
+            }
+            @if (User.IsInRole("Admin"))
+            {
+                <form method="post" action="/Releases/GenerateZip/@Model.Id">@Html.AntiForgeryToken()<button class="btn btn-primary" type="submit">Generate ZIP</button></form>
+                @if (!string.IsNullOrWhiteSpace(Model.ZipFileName))
+                {
+                    <a class="btn btn-outline-primary" asp-action="DownloadZip" asp-route-id="@Model.Id">Download ZIP</a>
+                    <form method="post" action="/Releases/UploadFtp/@Model.Id">@Html.AntiForgeryToken()<button class="btn btn-success" type="submit">Upload FTP</button></form>
+                }
+                <a class="btn btn-outline-secondary" asp-action="Email" asp-route-id="@Model.Id">Email</a>
+                <a class="btn btn-outline-success" asp-action="WhatsApp" asp-route-id="@Model.Id">WhatsApp</a>
+            }
+        </div>
+        <hr />
+        <dl class="row mb-0">
+            <dt class="col-sm-3">ZIP file</dt><dd class="col-sm-9">@(Model.ZipFileName ?? "—")</dd>
+            <dt class="col-sm-3">ZIP location</dt><dd class="col-sm-9"><code>@(savedZipPath ?? "—")</code></dd>
+            <dt class="col-sm-3">FTP location</dt><dd class="col-sm-9"><code>@(Model.FtpLocation ?? "—")</code></dd>
+        </dl>
+    </div>
+</div>
+
+<div id="releaseProgressOverlay" class="d-none" role="dialog" aria-modal="true" aria-labelledby="releaseProgressTitle"
+     style="position:fixed;inset:0;background:rgba(10,18,32,.68);z-index:2000;display:flex;align-items:center;justify-content:center;padding:1rem">
+    <div class="card shadow-lg" style="width:min(680px,100%);max-height:85vh;overflow:auto">
+        <div class="card-body p-4">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <span id="releaseProgressSpinner" class="spinner-border text-primary" aria-hidden="true"></span>
+                <div><h2 id="releaseProgressTitle" class="h4 mb-1">Preparing release</h2><div id="releaseProgressMessage" class="text-secondary">Starting release actions…</div></div>
+            </div>
+            <div class="progress mb-3" role="progressbar" aria-label="Release progress" aria-valuemin="0" aria-valuemax="100">
+                <div id="releaseProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:2%">2%</div>
+            </div>
+            <div class="small fw-semibold mb-2">Activity log</div>
+            <ul id="releaseProgressEvents" class="list-group list-group-flush small" style="max-height:35vh;overflow:auto"></ul>
+            <div class="text-end mt-3 d-flex justify-content-end gap-2">
+                <button id="releaseProgressCancel" class="btn btn-danger" type="button">Cancel</button>
+                <button id="releaseProgressClose" class="btn btn-outline-secondary" type="button" disabled>Close</button>
+                <a id="releaseOpenGmail" class="btn btn-primary d-none" href="#" target="_blank" rel="noopener">Open Gmail</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const form = document.getElementById('releaseActionForm');
+            if (!form) return;
+            const overlay = document.getElementById('releaseProgressOverlay');
+            const progressBar = document.getElementById('releaseProgressBar');
+            const message = document.getElementById('releaseProgressMessage');
+            const eventsList = document.getElementById('releaseProgressEvents');
+            const spinner = document.getElementById('releaseProgressSpinner');
+            const closeButton = document.getElementById('releaseProgressClose');
+            const title = document.getElementById('releaseProgressTitle');
+            const openGmailButton = document.getElementById('releaseOpenGmail');
+            const cancelButton = document.getElementById('releaseProgressCancel');
+            const button = document.getElementById('releaseActionButton');
+            let lastEventCount = 0;
+            let latestState = null;
+            let gmailUrl = null;
+
+            closeButton.addEventListener('click', () => overlay.classList.add('d-none'));
+            cancelButton.addEventListener('click', async () => {
+                cancelButton.disabled = true;
+                cancelButton.textContent = 'Canceling…';
+                console.warn(`[Release @Model.Id] Cancellation requested by user.`);
+                try {
+                    const response = await fetch(form.dataset.cancelUrl, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (!response.ok) {
+                        const result = await response.json();
+                        console.error(`[Release @Model.Id] Could not cancel release:`, result.error);
+                    }
+                } catch (error) {
+                    console.error(`[Release @Model.Id] Cancel request failed.`, error);
+                }
+            });
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                overlay.classList.remove('d-none');
+                if (button) {
+                    button.disabled = true;
+                    button.textContent = 'Processing…';
+                }
+                console.info(`[Release @Model.Id] Submitted; waiting for ZIP, FTP, and email preparation to complete.`);
+                pollProgress();
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const result = await response.json();
+                    if (!response.ok) {
+                        if (result.canceled) {
+                            console.info(`[Release @Model.Id] Server confirmed cancellation.`);
+                            return;
+                        }
+                        console.error(`[Release @Model.Id] Release action failed:`, result.error);
+                        showRequestError(result.error || `Request failed with HTTP ${response.status}.`);
+                        return;
+                    } else {
+                        gmailUrl = result.gmailUrl;
+                        openGmailButton.href = gmailUrl;
+                        openGmailButton.classList.remove('d-none');
+                        console.info(`[Release @Model.Id] Gmail compose link is ready.`);
+                    }
+                    renderCompletion();
+                } catch (error) {
+                    console.error(`[Release @Model.Id] Release request failed.`, error);
+                    showRequestError('The server request failed. Check the server console log and try again.');
+                }
+            });
+
+            async function pollProgress() {
+                const url = form.dataset.progressUrl;
+                while (!overlay.classList.contains('d-none')) {
+                    try {
+                        const response = await fetch(url, { cache: 'no-store', headers: { 'Accept': 'application/json' } });
+                        if (response.ok) {
+                            const state = await response.json();
+                            latestState = state;
+                            const percent = Math.max(0, Math.min(100, state.percent ?? 0));
+                            progressBar.style.width = `${percent}%`;
+                            progressBar.textContent = `${percent}%`;
+                            progressBar.setAttribute('aria-valuenow', percent);
+                            message.textContent = `${state.stage}: ${state.message}`;
+
+                            const events = state.events ?? [];
+                            for (const item of events.slice(lastEventCount)) {
+                                const line = document.createElement('li');
+                                line.className = `list-group-item px-0 ${item.isError ? 'text-danger fw-semibold' : ''}`;
+                                const time = new Date(item.at).toLocaleTimeString();
+                                line.textContent = `${time} · ${item.stage}: ${item.message}`;
+                                eventsList.appendChild(line);
+                                console[item.isError ? 'error' : 'info'](`[Release @Model.Id] ${item.stage}: ${item.message}`);
+                            }
+                            lastEventCount = events.length;
+                            eventsList.scrollTop = eventsList.scrollHeight;
+
+                            if (state.isCancelRequested) {
+                                cancelButton.disabled = true;
+                                cancelButton.textContent = 'Canceling…';
+                            }
+
+                            if (state.isCompleted) {
+                                renderCompletion();
+                                if (state.hasError || state.isCanceled || gmailUrl) return;
+                            }
+                        } else if (response.status !== 404) {
+                            console.error(`[Release @Model.Id] Progress request failed with HTTP ${response.status}.`);
+                        }
+                    } catch (error) {
+                        console.error(`[Release @Model.Id] Could not read progress.`, error);
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 700));
+                }
+            }
+
+            function renderCompletion() {
+                if (!latestState?.isCompleted) return;
+                spinner.classList.add('d-none');
+                progressBar.classList.remove('progress-bar-animated');
+                closeButton.disabled = !latestState.hasError && !latestState.isCanceled && !gmailUrl;
+                cancelButton.classList.add('d-none');
+                if (latestState.hasError) {
+                    title.textContent = 'Release action failed';
+                    progressBar.classList.add('bg-danger');
+                } else if (latestState.isCanceled) {
+                    title.textContent = 'Release action canceled';
+                    message.textContent = latestState.message;
+                    progressBar.classList.add('bg-warning');
+                } else if (gmailUrl) {
+                    title.textContent = 'Release action complete';
+                    message.textContent = 'All steps are complete. Open Gmail when you are ready; no tab was opened during processing.';
+                    if (button) button.textContent = 'Release';
+                } else {
+                    title.textContent = 'Release preparation complete';
+                    message.textContent = 'Preparing the Gmail link…';
+                }
+                if (button) button.disabled = false;
+            }
+
+            function showRequestError(errorMessage) {
+                spinner.classList.add('d-none');
+                title.textContent = 'Release action failed';
+                message.textContent = errorMessage;
+                progressBar.classList.add('bg-danger');
+                progressBar.classList.remove('progress-bar-animated');
+                cancelButton.classList.add('d-none');
+                closeButton.disabled = false;
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = 'Release';
+                }
+            }
+        })();
+    </script>
+}

@@ -1,0 +1,74 @@
+@{
+    ViewData["Title"] = "Settings";
+    var data = ((List<ReleaseManager.Models.FtpConfig>, List<ReleaseManager.Models.EmailConfig>))Model;
+    var ftps = data.Item1;
+    var emails = data.Item2;
+}
+
+<div class="d-flex justify-content-between">
+    <h2>Settings</h2>
+</div>
+
+<h4 class="mt-4">FTP</h4>
+
+<a class="btn btn-primary mb-2" href="/Settings/FtpCreate">
+    + Add FTP
+</a>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Host</th>
+            <th>Port</th>
+            <th>FTPS</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var x in ftps)
+        {
+            <tr>
+                <td>@x.Name</td>
+                <td>@x.Host</td>
+                <td>@x.Port</td>
+                <td>@x.UseFtps</td>
+                <td>
+                    <a href="/Settings/FtpEdit/@x.Id">Edit</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h4 class="mt-4">Email</h4>
+
+<a class="btn btn-primary mb-2" href="/Settings/EmailCreate">
+    + Add Email
+</a>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>SMTP</th>
+            <th>From</th>
+            <th>SSL</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var x in emails)
+        {
+            <tr>
+                <td>@x.Name</td>
+                <td>@x.SmtpHost:@x.SmtpPort</td>
+                <td>@x.FromAddress</td>
+                <td>@x.UseSsl</td>
+                <td>
+                    <a href="/Settings/EmailEdit/@x.Id">Edit</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
